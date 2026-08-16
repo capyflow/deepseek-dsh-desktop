@@ -44,6 +44,11 @@ async function main() {
 
   await app.whenReady()
 
+  // 开发模式（未打包）下 Dock 显示鲸鱼图标；打包后由应用包自带的 icon.icns 提供
+  if (process.platform === 'darwin' && !app.isPackaged) {
+    app.dock?.setIcon(path.join(__dirname, 'assets', 'icon.png'))
+  }
+
   // 与 CLI 共用 ~/.dsh：桌面端和 dsh CLI 共享同一套配置/凭据/会话。显式设置的 DSH_HOME 优先。
   if (!process.env.DSH_HOME) {
     process.env.DSH_HOME = path.join(os.homedir(), '.dsh')
@@ -110,6 +115,8 @@ function createWindow(port) {
     title: 'DeepSeek Harness Desktop',
     autoHideMenuBar: true,
     backgroundColor: '#0f1115',
+    // Linux 窗口图标（macOS/Windows 使用应用包/可执行文件自带的图标，此处不生效）
+    ...(process.platform === 'linux' ? { icon: path.join(__dirname, 'assets', 'icon.png') } : {}),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,

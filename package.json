@@ -41,18 +41,21 @@
         "deb"
       ],
       "category": "Development",
-      "maintainer": "aaron"
+      "maintainer": "aaron",
+      "icon": "build/icon.png"
     },
     "win": {
       "target": [
         "nsis"
-      ]
+      ],
+      "icon": "build/icon.ico"
     },
     "mac": {
       "target": [
         "dmg"
       ],
-      "category": "public.app-category.developer-tools"
+      "category": "public.app-category.developer-tools",
+      "icon": "build/icon.icns"
     }
   }
 }
