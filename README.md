@@ -47,11 +47,72 @@ npm run dist:win       # NSIS 安装包（需在 Windows 或装 wine）
 npm run dist:mac       # DMG（需 macOS）
 ```
 
+## 升级 dsh / 合并官方更新
+
+**本仓库不 vendor 官方源码**：dsh 及其 UI 以 npm 依赖形式引入（见
+`package.json` 的 `@deepseek-ai/*`，如 `@deepseek-ai/dsh`、
+`@deepseek-ai/dsh-client-ui-workspace`）。官方发布新版本 = 发布新 npm 包，
+"合并官方最新代码" = **升级依赖 → 重放补丁 → 验证 → 重新打包**。
+
+```bash
+# 1) 升级依赖（把目标版本写进 package.json 后执行，或直接指定 latest）
+npm install @deepseek-ai/dsh@latest @deepseek-ai/dsh-app-boot@latest \
+            @deepseek-ai/dsh-cmdline@latest @deepseek-ai/dsh-home-paths@latest
+
+# 2) postinstall 会自动重放「Open in」补丁，务必观察输出：
+#    [patch-open-in] 已应用 6/6 个片段        → 补丁正常
+#    [patch-open-in] 跳过片段（期望 1 处匹配…）→ 上游 bundle 结构变了，见下
+```
+
+**补丁失配时**（上游重编译了 `dsh-client-ui-workspace`，精确匹配失败）：
+
+1. 功能影响仅是「打开方式」菜单暂时消失——脚本匹配不上就跳过并以 0 退出，
+   不会导致 `npm install` 失败或应用崩溃；
+2. 更新 `scripts/patch-open-in.mjs` 的 `REPLACEMENTS`：用 `npm pack
+   @deepseek-ai/dsh-client-ui-workspace@<新版本>` 拉出原包，对比新 bundle，
+   把对应的几段代码抄进片段即可；
+3. 重新 `npm install` 验证输出变为「已应用 6/6」。
+
+**验证与分发**：
+
+```bash
+npm run smoke          # 进程内 boot + SPA 可访问（纯 Node，无需显示器）
+npm run dev            # 启动应用，检查工作区行 ⋯ 菜单里的「打开方式」
+npm run dist:mac       # 重新打包分发（已安装的应用是旧快照，升级后必须重打包才生效）
+```
+
+**其他注意事项**：
+
+- 查看当前依赖版本：`npm ls @deepseek-ai/dsh-client-ui-workspace`
+- `electron/` 下的代码是本仓库自有的壳代码，官方 npm 更新不会覆盖它们；
+  升级 dsh 时唯一需要留意的兼容点是 `electron/dsh-boot.js` 使用的
+  `@deepseek-ai/dsh-app-boot` 公共 API（README 开头有说明）。
+- 若将来官方原生实现了「Open in」（或 UI 结构大改使补丁失去意义），
+  删除 `scripts/patch-open-in.mjs` 和 `package.json` 里的 `postinstall`
+  钩子即可干净移除，不留残留。
+
 ## 用户数据
 
 - `DSH_HOME` 环境变量优先；未设置时默认 `~/.dsh`——**与 dsh CLI 共用同一套**
   profile、会话、凭据、`.env`（桌面端和 CLI 可以无缝切换使用）。
 - 遥测开关：设置 `DSH_TELEMETRY_DISABLED=1` 即关闭（同 dsh CLI）。
+
+## 工作区「Open in」
+
+工作区行的 `⋯` 菜单新增「打开方式（Open in）」子菜单，可在**系统终端**或
+**文件管理器**中打开工作区目录（macOS / Linux）：
+
+- macOS：文件管理器走 `open`（Finder）；终端优先 iTerm2，未安装则回退
+  Terminal.app。
+- Linux：文件管理器走 `xdg-open`；终端按 `gnome-terminal` → `konsole` →
+  `xfce4-terminal` → `kitty` → `alacritty` → `wezterm` → `xterm` 顺序探测，
+  也可用环境变量 `DSH_DESKTOP_TERMINAL` 指定（通用 `-e sh -c` 形式）。
+- 纯浏览器环境（无桌面壳）下该菜单自动置灰。
+
+实现：`electron/open-in.js`（纯 Node 宿主逻辑）+ `electron/main.js` 的
+`dsh-desktop:open-in` IPC + `electron/preload.js` 的 `dshDesktop.openIn` 桥 +
+对 `dsh-client-ui-workspace` 客户端 bundle 的补丁（`scripts/patch-open-in.mjs`，
+已在 `postinstall` 中自动重放，`npm install` 后无需手工处理）。
 
 ## 已验证
 

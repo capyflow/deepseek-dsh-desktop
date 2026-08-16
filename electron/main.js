@@ -15,14 +15,35 @@
  *
  * 单进程、无子进程管理、无端口冲突。关窗即 dispose 插件树退出。
  */
-import { app, BrowserWindow, dialog } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain } from 'electron'
+import { existsSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { bootDshDesktop } from './dsh-boot.js'
+import { openInFileManager, openInTerminal } from './open-in.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
+
+/**
+ * 工作区「Open in」的 IPC 接线：渲染进程（preload 桥）→ 主进程 →
+ * electron/open-in.js（纯 Node 宿主实现，macOS/Linux）。
+ */
+
+/** 校验来自页面的路径：必须是非空绝对路径且目录存在。 */
+function validOpenPath(p) {
+  return typeof p === 'string' && p.startsWith('/') && p !== '/' && existsSync(p)
+}
+
+/** 工作区「Open in」IPC：渲染进程 → 主进程。 */
+ipcMain.handle('dsh-desktop:open-in', async (_event, payload) => {
+  const { kind, path } = payload ?? {}
+  if (!validOpenPath(path)) return { ok: false, error: 'invalid path' }
+  if (kind === 'terminal') return openInTerminal(path)
+  if (kind === 'fileManager') return openInFileManager(path)
+  return { ok: false, error: `unknown kind: ${String(kind)}` }
+})
 
 /** 单实例锁：重复启动时聚焦已有窗口 */
 const gotLock = app.requestSingleInstanceLock()

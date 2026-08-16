@@ -7,6 +7,7 @@
   "main": "electron/main.js",
   "scripts": {
     "dev": "electron .",
+    "postinstall": "node scripts/patch-open-in.mjs",
     "smoke": "node scripts/smoke-boot.mjs",
     "smoke:electron": "electron scripts/electron-smoke.mjs",
     "dist": "electron-builder --linux",
