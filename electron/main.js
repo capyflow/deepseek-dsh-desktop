@@ -13,9 +13,10 @@
  *        ▼
  *   BrowserWindow 加载 http://127.0.0.1:<port>   ← 与 trust fence 要求的回环同源一致
  *
- * 单进程、无子进程管理、无端口冲突。关窗即 dispose 插件树退出。
+ * 单进程、无子进程管理、无端口冲突。窗口与导航状态机在 window-manager.js
+ * （main.js 只做生命周期接线）。
  */
-import { app, BrowserWindow, dialog, ipcMain } from 'electron'
+import { app, dialog, ipcMain } from 'electron'
 import { existsSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -23,6 +24,7 @@ import { fileURLToPath } from 'node:url'
 
 import { bootDshDesktop } from './dsh-boot.js'
 import { openInFileManager, openInTerminal } from './open-in.js'
+import { createWindowManager } from './window-manager.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -55,8 +57,9 @@ if (!gotLock) {
 
 /** 已 boot 的 dsh 根上下文（Cordis Context），退出时 dispose */
 let dshCtx = null
-/** 当前主窗口 */
-let mainWindow = null
+
+/** 主窗口与通知导航状态机（窗口、端口、待交付导航请求） */
+const wm = createWindowManager()
 
 async function main() {
   // 桌面应用不允许静默崩溃：任何未捕获错误都弹窗并带出日志
@@ -75,17 +78,27 @@ async function main() {
     process.env.DSH_HOME = path.join(os.homedir(), '.dsh')
   }
 
-  app.on('second-instance', () => {
-    if (mainWindow) {
-      if (mainWindow.isMinimized()) mainWindow.restore()
-      mainWindow.focus()
+  // 单实例：重复启动只聚焦已有窗口
+  app.on('second-instance', () => wm.focusExisting())
+
+  app.on('window-all-closed', () => {
+    // macOS：Cmd+W 只关窗口不退出应用（符合平台习惯），Dock 图标/通知点击
+    // 可随时把窗口重新拉起来（见 activate / navigate-request 处理）。
+    // 其他平台：窗口全关即退出，避免遗留 harness 进程。
+    if (process.platform !== 'darwin') {
+      app.quit()
     }
   })
 
-  app.on('window-all-closed', () => {
-    // 本地工具型应用：窗口全关即退出（含 macOS），避免遗留 harness 进程
-    app.quit()
-  })
+  // macOS：点击 Dock 图标时，无窗口则重建窗口，有窗口则聚焦
+  app.on('activate', () => wm.activate())
+
+  // 通知点击导航：窗口在 → 聚焦并推送；窗口不在（Cmd+W 关窗后）→ 暂存请求
+  // 并重建窗口，由客户端插件在页面加载后取走（take-navigate IPC）。
+  app.on('dsh-desktop:navigate-request', (payload) => wm.navigateRequest(payload))
+
+  // 客户端插件加载时取走待交付的导航请求（取走即清空，只交付一次）
+  ipcMain.handle('dsh-desktop:take-navigate', () => wm.takePendingNavigate())
 
   app.on('will-quit', (event) => {
     // 先 dispose dsh 插件树（关服务器、落盘会话），再真正退出
@@ -99,7 +112,8 @@ async function main() {
 
   try {
     const port = await bootDsh()
-    createWindow(port)
+    wm.setPort(port)
+    wm.createWindow()
   } catch (err) {
     showFatal(err)
   }
@@ -124,43 +138,6 @@ async function bootDsh() {
   }
   console.log(`[dsh-desktop] harness listening on http://127.0.0.1:${port}`)
   return port
-}
-
-/** 创建加载本地 harness UI 的窗口 */
-function createWindow(port) {
-  mainWindow = new BrowserWindow({
-    width: 1280,
-    height: 860,
-    minWidth: 940,
-    minHeight: 600,
-    title: 'DeepSeek Harness Desktop',
-    autoHideMenuBar: true,
-    backgroundColor: '#0f1115',
-    // Linux 窗口图标（macOS/Windows 使用应用包/可执行文件自带的图标，此处不生效）
-    ...(process.platform === 'linux' ? { icon: path.join(__dirname, 'assets', 'icon.png') } : {}),
-    webPreferences: {
-      preload: path.join(__dirname, 'preload.js'),
-      contextIsolation: true,
-      nodeIntegration: false,
-      sandbox: true,
-    },
-  })
-
-  // 只允许停留在本地 harness 源内；外部导航一律拦截
-  mainWindow.webContents.on('will-navigate', (event, url) => {
-    if (!url.startsWith(`http://127.0.0.1:${port}/`)) {
-      event.preventDefault()
-    }
-  })
-  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    // 新窗口/外链不放开（后续可做成 openExternal）
-    return { action: 'deny' }
-  })
-
-  void mainWindow.loadURL(`http://127.0.0.1:${port}`)
-  mainWindow.on('closed', () => {
-    mainWindow = null
-  })
 }
 
 /** 致命错误：弹窗 + 日志 + 释放 dsh 上下文后退出 */

@@ -1,0 +1,10 @@
+# dsh-desktop-navigate bundle patch: mount the client navigation entry into
+# the web profile tree.
+#
+# The host side is a no-op; the browser half is discovered through the
+# package's dsh.client declaration (exports["./client"]) and composed into
+# window.__DSH_BOOT__ by dsh-client-modules. The row must exist so the host
+# Loader owns the entry and the client scan finds the package.
+- insert:
+    - id: desktop-navigate
+      name: 'dsh-desktop-navigate'

@@ -18,4 +18,26 @@ contextBridge.exposeInMainWorld('dshDesktop', {
    * @returns Promise<{ ok: boolean; error?: string }>
    */
   openIn: (kind, path) => ipcRenderer.invoke('dsh-desktop:open-in', { kind, path }),
+  /**
+   * 订阅通知点击导航事件（主进程推送）。
+   * @param callback 收到 { kind: 'session', sessionId } 时调用
+   * @returns 取消订阅的函数
+   */
+  onNavigate: (callback) => {
+    const listener = (_event, payload) => {
+      try {
+        callback(payload)
+      } catch {}
+    }
+    ipcRenderer.on('dsh-desktop:navigate', listener)
+    return () => {
+      ipcRenderer.removeListener('dsh-desktop:navigate', listener)
+    }
+  },
+  /**
+   * 取走待交付的导航请求（窗口是关窗后重建的、页面加载时调用）。
+   * 取走即清空：每个请求只交付一次。
+   * @returns Promise<{ kind: 'session', sessionId: string } | null>
+   */
+  takePendingNavigate: () => ipcRenderer.invoke('dsh-desktop:take-navigate'),
 })

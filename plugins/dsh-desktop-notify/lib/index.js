@@ -7,7 +7,11 @@
  *
  * Delivery: inside the Electron desktop app the whole Cordis tree runs in the
  * Electron MAIN process (in-process boot), so Electron's native
- * `Notification` is used directly, with a click focusing the app window.
+ * `Notification` is used directly, with a click focusing the app window and —
+ * for completion/error notifications — asking the main process to navigate
+ * to the session that finished (`dsh-desktop:navigate-request`, handled by
+ * electron/main.js; the client plugin dsh-desktop-navigate performs the
+ * actual session switch in the web UI).
  * Outside Electron (plain `dsh web` via CLI) the same events degrade to a
  * console line, so the bundle stays loadable in every profile.
  *
@@ -55,8 +59,25 @@ const DEFAULT_CONFIG = {
   quietWhenFocused: true,
 }
 
+/**
+ * Ask the Electron main process to surface the app and navigate to the
+ * session behind a notification click. The main process owns windows: it
+ * focuses the live window (push) or recreates it when it was closed
+ * (pending pull by the client plugin). Outside Electron this is a no-op.
+ * @param sessionId - target session id.
+ */
+function navigateToSession(sessionId) {
+  if (typeof sessionId !== 'string' || sessionId === '') return
+  if (ElectronApp === null) return
+  try {
+    ElectronApp.emit('dsh-desktop:navigate-request', { kind: 'session', sessionId })
+  } catch (error) {
+    console.warn(`[dsh-desktop-notify] click navigation failed: ${String(error)}`)
+  }
+}
+
 /** Show one notification; console fallback outside Electron. Never throws. */
-function notify(title, body, { quietWhenFocused = false } = {}) {
+function notify(title, body, { quietWhenFocused = false, sessionId } = {}) {
   if (quietWhenFocused && anyWindowFocused()) return
   if (ElectronNotification !== null) {
     try {
@@ -65,6 +86,7 @@ function notify(title, body, { quietWhenFocused = false } = {}) {
         try {
           ElectronApp?.focus({ steal: true })
         } catch {}
+        navigateToSession(sessionId)
       })
       notification.show()
       return
@@ -157,13 +179,18 @@ function apply(ctx, rawConfig = {}) {
       if (!isRootSession(session)) return
       const reason = event.data?.reason?.kind
       const task = snippet(lastUserText(session))
+      // Session behind the notification: clicking it surfaces the app and
+      // opens this session in the web UI.
+      const sessionId = typeof session?.id === 'string' ? session.id : undefined
       if (reason === 'completed' && config.notifyOnComplete) {
         notify('DSH 处理完成', task ? `「${task}」` : 'Agent 已完成处理', {
           quietWhenFocused: config.quietWhenFocused,
+          sessionId,
         })
       } else if (reason === 'error' && config.notifyOnError) {
         notify('DSH 处理出错', task ? `「${task}」处理失败` : 'Agent 处理失败', {
           quietWhenFocused: config.quietWhenFocused,
+          sessionId,
         })
       }
     } catch (error) {

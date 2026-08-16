@@ -1,0 +1,29 @@
+{
+  "name": "dsh-desktop-navigate",
+  "version": "0.1.0",
+  "description": "DSH client plugin: opens the session behind a desktop notification click (host side is a no-op entry; the browser half ships via exports[\"./client\"]).",
+  "type": "module",
+  "main": "lib/index.js",
+  "exports": {
+    ".": "./lib/index.js",
+    "./client": "./lib/client.js",
+    "./package.json": "./package.json"
+  },
+  "license": "MIT",
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "inject": [
+        "@deepseek-ai/dsh-client-runtime"
+      ],
+      "platform": "web"
+    }
+  },
+  "files": [
+    "lib",
+    "cordis.patch.yml",
+    "README.md"
+  ]
+}

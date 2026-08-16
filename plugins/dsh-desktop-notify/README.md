@@ -2,7 +2,7 @@
 
 DSH 宿主插件：当 agent **需要你输入**或**处理完成**（或出错）时，弹出系统通知。
 
-- 桌面应用（Electron）内：使用 **Electron 主进程原生通知**（macOS 通知中心），点击通知会聚焦应用窗口。
+- 桌面应用（Electron）内：使用 **Electron 主进程原生通知**（macOS 通知中心），点击"完成/出错"通知会聚焦应用窗口并**自动切换到对应会话**（经 `dsh-desktop:navigate-request` 主进程事件 → dsh-desktop-navigate 客户端插件；窗口已关则先重建再导航）。
 - 其他场景（如 CLI `dsh web` 跑在普通 Node 里）：退化为控制台日志，插件依然可加载、不会报错。
 
 ## 工作原理
