@@ -13,7 +13,7 @@
  *   - 窗口不在（macOS Cmd+W 关窗后应用仍在运行）→ 暂存请求并重建窗口，
  *     客户端插件在页面加载后通过 take-navigate IPC 取走（取走即清空）
  */
-import { BrowserWindow } from 'electron'
+import { BrowserWindow, shell } from 'electron'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -55,14 +55,20 @@ export function createWindowManager() {
       },
     })
 
-    // 只允许停留在本地 harness 源内；外部导航一律拦截
+    // 本地源内导航放行；外部 http/https 链接交给系统浏览器打开，
+    // 其他协议一律拒绝——窗口永不离开 harness 源。
     win.webContents.on('will-navigate', (event, url) => {
-      if (!url.startsWith(`http://127.0.0.1:${port}/`)) {
-        event.preventDefault()
+      if (url.startsWith(`http://127.0.0.1:${port}/`)) return
+      event.preventDefault()
+      if (url.startsWith('http://') || url.startsWith('https://')) {
+        void shell.openExternal(url)
       }
     })
-    win.webContents.setWindowOpenHandler(() => {
-      // 新窗口/外链不放开（后续可做成 openExternal）
+    win.webContents.setWindowOpenHandler(({ url }) => {
+      // target=_blank 的新窗口不放开：http/https 外链转系统浏览器，其余拒绝
+      if (url.startsWith('http://') || url.startsWith('https://')) {
+        void shell.openExternal(url)
+      }
       return { action: 'deny' }
     })
 
