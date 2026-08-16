@@ -1,6 +1,6 @@
 {
   "name": "deepseek-dsh-desktop",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "description": "DeepSeek Harness (dsh) 桌面客户端 — 在 Electron 中进程内嵌 dsh harness，无子进程、无端口冲突",
   "type": "module",
@@ -19,7 +19,8 @@
     "@deepseek-ai/dsh": "^0.1.0-rc.6",
     "@deepseek-ai/dsh-app-boot": "^0.1.0-rc.6",
     "@deepseek-ai/dsh-cmdline": "^0.1.0-rc.6",
-    "@deepseek-ai/dsh-home-paths": "^0.1.0-rc.6"
+    "@deepseek-ai/dsh-home-paths": "^0.1.0-rc.6",
+    "dsh-desktop-notify": "file:./plugins/dsh-desktop-notify"
   },
   "devDependencies": {
     "electron": "^37.0.0",

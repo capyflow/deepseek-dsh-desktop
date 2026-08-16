@@ -12,7 +12,7 @@
  * 端口由调用方通过 args 传入 `--port 0`（OS 自动分配），boot 完成后从
  * `ctx.webServer.port` 读取实际端口。
  */
-import { writeFileSync } from 'node:fs'
+import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -22,13 +22,23 @@ import {
   healProfilesModuleFallback,
   loadLayeredEnv,
   loadOptionalPatches,
+  loadOverlayPatches,
   loadProfile,
+  resolveBundleDir,
   PROFILE_PATCH_FILENAME,
 } from '@deepseek-ai/dsh-app-boot'
 import { provideCmdline } from '@deepseek-ai/dsh-cmdline'
 import { resolveDshHome } from '@deepseek-ai/dsh-home-paths'
 
 const NAME = 'dsh'
+
+/**
+ * 随应用内置分发的插件 bundle：release 版开箱即用，用户无需自己
+ * `dsh plugin add`。包名必须是应用 dependencies 之一（npm file: 依赖），
+ * 这样它进入安装依赖闭包：healProfilesModuleFallback 会把它链接进
+ * $DSH_HOME/profiles/node_modules，Loader 从 profile 目录即可 bare-import。
+ */
+const BUILTIN_BUNDLES = ['dsh-desktop-notify']
 
 /** 会话遥测行 id，DSH_TELEMETRY_DISABLED 开关的目标（同 CLI） */
 const TELEMETRY_ROW_ID = 'session-telemetry-otel'
@@ -45,6 +55,12 @@ const PROFILE_ROOT_CONFIG = `# dsh profile root — an empty entry list. The tre
 const DSH_INSTALL_ANCHOR = fileURLToPath(
   new URL('../node_modules/@deepseek-ai/dsh/package.json', import.meta.url),
 )
+/**
+ * 应用自身锚点：本应用 package.json。模块回退链接的 BFS 从它出发，闭包 =
+ * dsh 依赖闭包 ∪ 应用直接依赖（内置插件 dsh-desktop-notify 因此进入
+ * $DSH_HOME/profiles/node_modules，任何 profile 都能 bare-import）。
+ */
+const APP_INSTALL_ANCHOR = fileURLToPath(new URL('../package.json', import.meta.url))
 /** dsh 包内置的 agent-preset 根目录（随包发布在 config/agent-presets） */
 const SHIPPED_PRESET_ROOT = fileURLToPath(
   new URL('../node_modules/@deepseek-ai/dsh/config/agent-presets/', import.meta.url),
@@ -56,17 +72,47 @@ function homePatchPath() {
 }
 
 /**
+ * 把内置插件作为 bundle layer 追加进 profile（幂等）。
+ *
+ * 与 `dsh plugin` 的对账不同，这里不写 profile 的 package.json——内置层是
+ * 安装提供的只读层：profile 已自带同名 bundle（用户手动 `dsh plugin add`
+ * 过）就跳过，避免重复挂载；新机器/新 profile 则自动获得该层。
+ * layer 结构与 loadProfile 构造的完全一致（packageDir / patchPath / patches）。
+ */
+function appendBuiltinBundleLayers(profile) {
+  for (const packageName of BUILTIN_BUNDLES) {
+    if (profile.layers.some((layer) => layer.packageName === packageName)) continue
+    const packageDir = resolveBundleDir(NAME, packageName, DSH_INSTALL_ANCHOR, profile.dir)
+    const declared = JSON.parse(readFileSync(join(packageDir, 'package.json'), 'utf8')).dsh?.bundle?.patch
+    if (declared === undefined) {
+      throw new Error(`${NAME}: builtin bundle ${packageName} declares no dsh.bundle in its package.json`)
+    }
+    const patchPath = join(packageDir, declared)
+    profile.layers.push({
+      packageName,
+      packageDir,
+      patchPath,
+      patches: loadOverlayPatches(NAME, patchPath),
+    })
+  }
+  return profile
+}
+
+/**
  * 进程内 boot dsh web profile。
  * @param options.args - 传给 web profile 的命令行参数（如 ['--port', '0']）
  * @param options.onExit - cmdline 请求退出时的回调（桌面端交给 Electron 生命周期）
  * @returns 已激活的 Cordis 根上下文；调用方负责 ctx.fiber.dispose()
  */
 export async function bootDshDesktop({ args = [], onExit = () => {} } = {}) {
-  // ① 补齐 profile/node_modules 回退链接，让 bare 插件名可解析
-  healProfilesModuleFallback(DSH_INSTALL_ANCHOR)
+  // ① 补齐 profile/node_modules 回退链接，让 bare 插件名可解析。
+  //    从应用自身锚点 BFS：闭包含 dsh 全家桶 + 内置插件（dsh-desktop-notify）
+  healProfilesModuleFallback(APP_INSTALL_ANCHOR)
 
-  // ② 加载 web profile（首次自动按 PROFILE_TEMPLATES 初始化）并重写空根配置
+  // ② 加载 web profile（首次自动按 PROFILE_TEMPLATES 初始化）并重写空根配置；
+  //    然后追加内置插件层（幂等：profile 已手动装过的同名 bundle 不重复挂载）
   const profile = loadProfile(NAME, 'web', DSH_INSTALL_ANCHOR)
+  appendBuiltinBundleLayers(profile)
   writeFileSync(join(profile.dir, PROFILE_ROOT_FILENAME), PROFILE_ROOT_CONFIG)
 
   // ③ 组装 patch 层（应用顺序）：bundle 层 → profile 用户层 → home 层 → 覆盖层

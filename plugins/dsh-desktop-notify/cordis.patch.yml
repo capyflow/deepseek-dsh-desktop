@@ -1,0 +1,24 @@
+# dsh-desktop-notify bundle patch: mount the notification hook entry into the
+# web profile tree.
+#
+# The row injects `userQuestions` (provided by the dsh-base layer) so the
+# Loader only activates it after that service exists; the session/event
+# firehose listener needs no service and is registered from apply().
+#
+# Every value below is an override point: a later patch layer (the profile's
+# own cordis.patch.yml, the home layer, or a --patch overlay) may replace
+# this row's config by id `desktop-notify`.
+- insert:
+    - id: desktop-notify
+      name: 'dsh-desktop-notify'
+      inject: ['userQuestions']
+      config:
+        # Notify when the agent asks the human for input (ask_user_question).
+        notifyOnInput: true
+        # Notify when a root agent's turn ends with reason `completed`.
+        notifyOnComplete: true
+        # Notify when a root agent's turn ends with reason `error`.
+        notifyOnError: true
+        # Suppress completion/error notifications while a window has focus
+        # (input-required notifications are never suppressed: they are blocking).
+        quietWhenFocused: true
