@@ -1,0 +1,58 @@
+{
+  "name": "deepseek-dsh-desktop",
+  "version": "0.1.0",
+  "private": true,
+  "description": "DeepSeek Harness (dsh) 桌面客户端 — 在 Electron 中进程内嵌 dsh harness，无子进程、无端口冲突",
+  "type": "module",
+  "main": "electron/main.js",
+  "scripts": {
+    "dev": "electron .",
+    "smoke": "node scripts/smoke-boot.mjs",
+    "smoke:electron": "electron scripts/electron-smoke.mjs",
+    "dist": "electron-builder --linux",
+    "dist:linux": "electron-builder --linux",
+    "dist:win": "electron-builder --win",
+    "dist:mac": "electron-builder --mac"
+  },
+  "dependencies": {
+    "@deepseek-ai/dsh": "^0.1.0-rc.6",
+    "@deepseek-ai/dsh-app-boot": "^0.1.0-rc.6",
+    "@deepseek-ai/dsh-cmdline": "^0.1.0-rc.6",
+    "@deepseek-ai/dsh-home-paths": "^0.1.0-rc.6"
+  },
+  "devDependencies": {
+    "electron": "^37.0.0",
+    "electron-builder": "^26.0.0"
+  },
+  "build": {
+    "appId": "com.capyflow.deepseek-dsh-desktop",
+    "productName": "DeepSeek Harness Desktop",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "electron/**/*",
+      "package.json"
+    ],
+    "asar": false,
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "category": "Development",
+      "maintainer": "aaron"
+    },
+    "win": {
+      "target": [
+        "nsis"
+      ]
+    },
+    "mac": {
+      "target": [
+        "dmg"
+      ],
+      "category": "public.app-category.developer-tools"
+    }
+  }
+}
