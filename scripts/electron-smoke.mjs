@@ -32,6 +32,8 @@ async function run() {
     webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true },
   })
 
+  void win.loadURL(`http://127.0.0.1:${port}`)
+
   await new Promise((resolve, reject) => {
     win.webContents.once('did-finish-load', resolve)
     win.webContents.once('did-fail-load', (_e, code, desc) =>
