@@ -1,6 +1,6 @@
 {
   "name": "deepseek-dsh-desktop",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "private": true,
   "description": "DeepSeek Harness (dsh) 桌面客户端 — 在 Electron 中进程内嵌 dsh harness，无子进程、无端口冲突",
   "type": "module",
