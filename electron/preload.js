@@ -40,4 +40,19 @@ contextBridge.exposeInMainWorld('dshDesktop', {
    * @returns Promise<{ kind: 'session', sessionId: string } | null>
    */
   takePendingNavigate: () => ipcRenderer.invoke('dsh-desktop:take-navigate'),
+  /**
+   * 打开原生文件选择器挑一张背景图片（宿主负责复制进 $DSH_HOME 并持久化）。
+   * @returns Promise<{ ok: true, fileName: string, source: string } | { ok: false, error?: string, canceled?: boolean }>
+   */
+  pickBackground: () => ipcRenderer.invoke('dsh-desktop:pick-background'),
+  /**
+   * 恢复内置默认壁纸。
+   * @returns Promise<{ ok: true } | { ok: false, error?: string }>
+   */
+  clearBackground: () => ipcRenderer.invoke('dsh-desktop:clear-background'),
+  /**
+   * 查询当前背景状态（是否自定义、来源路径）。
+   * @returns Promise<{ ok: true, custom: boolean, fileName: string | null, source: string | null, updatedAt: number | null }>
+   */
+  getBackground: () => ipcRenderer.invoke('dsh-desktop:get-background'),
 })

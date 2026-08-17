@@ -1,0 +1,20 @@
+# dsh-desktop-background bundle patch: mount the background wallpaper entry
+# into the web profile tree.
+#
+# The host side registers the /desktop-wallpaper route (serves the chosen
+# local image, or the bundled default wallpaper) and the pick/clear/get IPC
+# handlers; the browser half ships via exports["./client"] and adds the
+# 「背景」row into the General section's Appearance area
+# (settings.general.item slot, order 20 — right below the Appearance row).
+#
+# Requires the webServer service so the route registers only once the server
+# exists. Config values below are override points for later patch layers
+# (profile cordis.patch.yml / home layer / --patch overlays) by row id
+# `desktop-background`.
+- insert:
+    - id: desktop-background
+      name: 'dsh-desktop-background'
+      inject: ['webServer']
+      config:
+        # 路由路径(浏览器端注入的 CSS 引用同一个路径,改这里要同步 patch 脚本)
+        routePath: '/desktop-wallpaper'

@@ -1,0 +1,36 @@
+{
+  "name": "dsh-desktop-background",
+  "version": "0.1.0",
+  "description": "DSH desktop plugin: 设置 → 通用设置 → 外观 里新增「背景」行,选择本地图片做整窗壁纸。宿主端注册 /desktop-wallpaper 路由并提供选择/清除/查询三个 IPC;浏览器端提供设置行并即时生效(无需刷新)。",
+  "type": "module",
+  "main": "lib/index.js",
+  "exports": {
+    ".": "./lib/index.js",
+    "./client": "./lib/client.js",
+    "./package.json": "./package.json"
+  },
+  "dependencies": {
+    "@deepseek-ai/dsh-home-paths": "^0.1.0-rc.6"
+  },
+  "license": "MIT",
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "inject": [
+        "@deepseek-ai/dsh-client-runtime",
+        "@deepseek-ai/dsh-client-locale",
+        "@deepseek-ai/dsh-client-ui-settings",
+        "@deepseek-ai/dsh-client-ui-slots"
+      ],
+      "platform": "web"
+    }
+  },
+  "files": [
+    "lib",
+    "assets",
+    "cordis.patch.yml",
+    "README.md"
+  ]
+}

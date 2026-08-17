@@ -7,10 +7,12 @@
   "main": "electron/main.js",
   "scripts": {
     "dev": "electron .",
-    "postinstall": "node scripts/patch-open-in.mjs",
+    "postinstall": "node scripts/patch-open-in.mjs && node scripts/patch-background.mjs",
     "smoke": "node scripts/smoke-boot.mjs",
     "smoke:electron": "electron scripts/electron-smoke.mjs",
     "smoke:navigate": "electron scripts/notify-navigate-smoke.mjs",
+    "smoke:background": "node scripts/background-smoke.mjs",
+    "smoke:background-window": "electron --no-sandbox --disable-gpu scripts/background-window-smoke.mjs",
     "dist": "electron-builder --linux",
     "dist:linux": "electron-builder --linux",
     "dist:win": "electron-builder --win",
@@ -22,7 +24,8 @@
     "@deepseek-ai/dsh-cmdline": "^0.1.0-rc.6",
     "@deepseek-ai/dsh-home-paths": "^0.1.0-rc.6",
     "dsh-desktop-notify": "file:./plugins/dsh-desktop-notify",
-    "dsh-desktop-navigate": "file:./plugins/dsh-desktop-navigate"
+    "dsh-desktop-navigate": "file:./plugins/dsh-desktop-navigate",
+    "dsh-desktop-background": "file:./plugins/dsh-desktop-background"
   },
   "devDependencies": {
     "electron": "^37.0.0",

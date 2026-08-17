@@ -38,7 +38,7 @@ const NAME = 'dsh'
  * 这样它进入安装依赖闭包：healProfilesModuleFallback 会把它链接进
  * $DSH_HOME/profiles/node_modules，Loader 从 profile 目录即可 bare-import。
  */
-const BUILTIN_BUNDLES = ['dsh-desktop-notify', 'dsh-desktop-navigate']
+const BUILTIN_BUNDLES = ['dsh-desktop-notify', 'dsh-desktop-navigate', 'dsh-desktop-background']
 
 /** 会话遥测行 id，DSH_TELEMETRY_DISABLED 开关的目标（同 CLI） */
 const TELEMETRY_ROW_ID = 'session-telemetry-otel'
